@@ -1,13 +1,18 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
 
 	"github.com/open-feature/cli/internal/api/sync"
 	"github.com/open-feature/cli/internal/config"
+	"github.com/open-feature/cli/internal/flagset"
+	"github.com/open-feature/cli/internal/logger"
 	"github.com/open-feature/cli/internal/manifest"
+	"github.com/open-feature/cli/internal/plugin"
+	_ "github.com/open-feature/cli/internal/plugin/builtin" // Register built-in plugins
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -59,7 +64,20 @@ For local file operations, use standard shell commands like cp or mv.`,
 			manifestPath := config.GetManifestPath(cmd)
 			authToken := config.GetAuthToken(cmd)
 			dryRun := config.GetDryRun(cmd)
+			pluginName := config.GetPluginName(cmd)
 
+			// Load the local manifest first (needed for both plugin and legacy paths)
+			flags, err := manifest.LoadFlagSet(manifestPath)
+			if err != nil {
+				return fmt.Errorf("error loading manifest from %s: %w", manifestPath, err)
+			}
+
+			// If a plugin is specified, use the plugin system
+			if pluginName != "" {
+				return pushWithPlugin(cmd, pluginName, flags, dryRun)
+			}
+
+			// Otherwise, use the existing behavior (backward compatible)
 			// Validate destination URL is provided
 			if providerURL == "" {
 				return fmt.Errorf("provider URL is required. Please provide --provider-url")
@@ -70,14 +88,6 @@ For local file operations, use standard shell commands like cp or mv.`,
 			if err != nil {
 				return fmt.Errorf("invalid source URL: %w", err)
 			}
-
-			// Load the local manifest
-			flags, err := manifest.LoadFlagSet(manifestPath)
-			if err != nil {
-				return fmt.Errorf("error loading manifest from %s: %w", manifestPath, err)
-			}
-
-			// Validation of required fields is handled by manifest.LoadFlagSet
 
 			// Handle URL schemes
 			switch parsedURL.Scheme {
@@ -136,6 +146,143 @@ func displayPushResults(result *sync.PushResult, destination string, dryRun bool
 		pterm.Info.Printf("DRY RUN: Would push %d flag(s) to %s\n\n", totalChanges, displayURL)
 	} else {
 		pterm.Success.Printf("Successfully pushed %d flag(s) to %s\n\n", totalChanges, displayURL)
+	}
+
+	// Display created flags
+	if len(result.Created) > 0 {
+		if dryRun {
+			pterm.FgCyan.Printf("◆ Would Create (%d):\n", len(result.Created))
+		} else {
+			pterm.FgGreen.Printf("◆ Created (%d):\n", len(result.Created))
+		}
+
+		for _, flag := range result.Created {
+			if dryRun {
+				pterm.FgCyan.Printf("  + %s", flag.Key)
+			} else {
+				pterm.FgGreen.Printf("  + %s", flag.Key)
+			}
+
+			if flag.Description != "" {
+				fmt.Printf(" - %s", flag.Description)
+			}
+			fmt.Println()
+
+			// Show flag details
+			flagJSON, _ := json.MarshalIndent(map[string]any{
+				"type":         flag.Type.String(),
+				"defaultValue": flag.DefaultValue,
+			}, "    ", "  ")
+			fmt.Printf("    %s\n", flagJSON)
+		}
+		fmt.Println()
+	}
+
+	// Display updated flags
+	if len(result.Updated) > 0 {
+		if dryRun {
+			pterm.FgMagenta.Printf("◆ Would Update (%d):\n", len(result.Updated))
+		} else {
+			pterm.FgYellow.Printf("◆ Updated (%d):\n", len(result.Updated))
+		}
+
+		for _, flag := range result.Updated {
+			if dryRun {
+				pterm.FgMagenta.Printf("  ~ %s", flag.Key)
+			} else {
+				pterm.FgYellow.Printf("  ~ %s", flag.Key)
+			}
+
+			if flag.Description != "" {
+				fmt.Printf(" - %s", flag.Description)
+			}
+			fmt.Println()
+
+			// Show flag details
+			flagJSON, _ := json.MarshalIndent(map[string]any{
+				"type":         flag.Type.String(),
+				"defaultValue": flag.DefaultValue,
+			}, "    ", "  ")
+			fmt.Printf("    %s\n", flagJSON)
+		}
+		fmt.Println()
+	}
+}
+
+// pushWithPlugin uses the plugin system to push flags to a remote source
+func pushWithPlugin(cmd *cobra.Command, pluginName string, flags *flagset.Flagset, dryRun bool) error {
+	logger.Default.Debug(fmt.Sprintf("Using plugin %q for push operation", pluginName))
+
+	// Get the plugin
+	p, err := plugin.Get(pluginName)
+	if err != nil {
+		return fmt.Errorf("failed to get plugin: %w", err)
+	}
+
+	// Build plugin configuration
+	pluginConfig := plugin.Config{
+		BaseURL:   config.GetFlagSourceURL(cmd),
+		AuthToken: config.GetAuthToken(cmd),
+		Custom:    config.GetPluginConfig(),
+	}
+
+	// Configure the plugin
+	if err := p.Configure(pluginConfig); err != nil {
+		return fmt.Errorf("failed to configure plugin: %w", err)
+	}
+
+	// Validate configuration
+	if err := p.ValidateConfig(); err != nil {
+		return fmt.Errorf("invalid plugin configuration: %w", err)
+	}
+
+	// Check if plugin supports push
+	if !plugin.HasCapability(p, plugin.CapabilityPush) {
+		return fmt.Errorf("plugin %q does not support push operations", pluginName)
+	}
+
+	// Push flags using the plugin
+	ctx := context.Background()
+	result, err := p.Push(flags, plugin.PushOptions{
+		Context: ctx,
+		DryRun:  dryRun,
+	})
+	if err != nil {
+		return fmt.Errorf("error pushing flags via plugin: %w", err)
+	}
+
+	// Display the results
+	displayPluginPushResults(result, p.Metadata().Name, dryRun)
+
+	// Report any non-fatal errors
+	if len(result.Errors) > 0 {
+		pterm.Warning.Println("Some operations had errors:")
+		for _, e := range result.Errors {
+			pterm.Warning.Printfln("  - %v", e)
+		}
+	}
+
+	return nil
+}
+
+// displayPluginPushResults renders the plugin push operation results
+func displayPluginPushResults(result *plugin.PushResult, pluginName string, dryRun bool) {
+	totalChanges := len(result.Created) + len(result.Updated)
+
+	// Determine message based on dry run mode
+	if totalChanges == 0 {
+		if dryRun {
+			pterm.Info.Println("DRY RUN: No changes needed - all flags are already up to date.")
+		} else {
+			pterm.Success.Println("No changes needed - all flags are already up to date.")
+		}
+		return
+	}
+
+	if dryRun {
+		pterm.Info.Printf("DRY RUN: Would push %d flag(s) via %s plugin\n\n", totalChanges, pluginName)
+	} else {
+		pterm.Success.Printf("Successfully pushed %d flag(s) via %s plugin\n\n", totalChanges, pluginName)
 	}
 
 	// Display created flags

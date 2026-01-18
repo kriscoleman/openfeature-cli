@@ -27,6 +27,7 @@ const (
 	DefaultValueFlagName  = "default-value"
 	DescriptionFlagName   = "description"
 	TemplateFlagName      = "template"
+	PluginFlagName        = "plugin"
 )
 
 // Default values for flags
@@ -81,6 +82,7 @@ func AddPullFlags(cmd *cobra.Command) {
 	_ = cmd.Flags().MarkDeprecated(FlagSourceURLFlagName, "use --provider-url instead")
 	cmd.Flags().String(AuthTokenFlagName, "", "The auth token for the flag provider")
 	cmd.Flags().Bool(NoPromptFlagName, false, "Disable interactive prompts for missing default values")
+	cmd.Flags().String(PluginFlagName, "", "Sync plugin to use (e.g., 'default', 'devcycle')")
 }
 
 // AddPushFlags adds the push command specific flags
@@ -90,6 +92,7 @@ func AddPushFlags(cmd *cobra.Command) {
 	_ = cmd.Flags().MarkDeprecated(FlagSourceURLFlagName, "use --provider-url instead")
 	cmd.Flags().String(AuthTokenFlagName, "", "The auth token for the flag provider")
 	cmd.Flags().Bool(DryRunFlagName, false, "Preview changes without pushing")
+	cmd.Flags().String(PluginFlagName, "", "Sync plugin to use (e.g., 'default', 'devcycle')")
 }
 
 // GetManifestPath gets the manifest path from the given command
@@ -213,4 +216,27 @@ func ShouldDisableInteractivePrompts(cmd *cobra.Command) bool {
 	}
 	// Automatically disable prompting if stdin is not a terminal
 	return !term.IsTerminal(int(os.Stdin.Fd()))
+}
+
+// GetPluginName gets the plugin name from the given command
+// It checks the command flag first, then falls back to the config file
+func GetPluginName(cmd *cobra.Command) string {
+	plugin, _ := cmd.Flags().GetString(PluginFlagName)
+	if plugin != "" {
+		return plugin
+	}
+	// Check config file - sync.plugin or just plugin
+	if configValue := viper.GetString("sync.plugin"); configValue != "" {
+		return configValue
+	}
+	return viper.GetString("plugin")
+}
+
+// GetPluginConfig gets the plugin-specific configuration from the config file
+func GetPluginConfig() map[string]any {
+	config := viper.GetStringMap("sync.config")
+	if len(config) > 0 {
+		return config
+	}
+	return viper.GetStringMap("pluginConfig")
 }

@@ -1,13 +1,17 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strconv"
 
 	"github.com/open-feature/cli/internal/config"
 	"github.com/open-feature/cli/internal/flagset"
+	"github.com/open-feature/cli/internal/logger"
 	"github.com/open-feature/cli/internal/manifest"
+	"github.com/open-feature/cli/internal/plugin"
+	_ "github.com/open-feature/cli/internal/plugin/builtin" // Register built-in plugins
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -46,7 +50,14 @@ Why pull from a remote source:
 			manifestPath := config.GetManifestPath(cmd)
 			authToken := config.GetAuthToken(cmd)
 			noPrompt := config.GetNoPrompt(cmd)
+			pluginName := config.GetPluginName(cmd)
 
+			// If a plugin is specified, use the plugin system
+			if pluginName != "" {
+				return pullWithPlugin(cmd, pluginName, manifestPath, noPrompt)
+			}
+
+			// Otherwise, use the existing behavior (backward compatible)
 			if providerURL == "" {
 				return fmt.Errorf("provider URL not set in config. Please provide --provider-url or set 'provider' in .openfeature.yaml")
 			}
@@ -171,4 +182,67 @@ func promptForDefaultValue(flag *flagset.Flag) (any, error) {
 	default:
 		return nil, fmt.Errorf("unsupported flag type: %s", flag.Type)
 	}
+}
+
+// pullWithPlugin uses the plugin system to pull flags from a remote source
+func pullWithPlugin(cmd *cobra.Command, pluginName, manifestPath string, noPrompt bool) error {
+	logger.Default.Debug(fmt.Sprintf("Using plugin %q for pull operation", pluginName))
+
+	// Get the plugin
+	p, err := plugin.Get(pluginName)
+	if err != nil {
+		return fmt.Errorf("failed to get plugin: %w", err)
+	}
+
+	// Build plugin configuration
+	pluginConfig := plugin.Config{
+		BaseURL:   config.GetFlagSourceURL(cmd),
+		AuthToken: config.GetAuthToken(cmd),
+		Custom:    config.GetPluginConfig(),
+	}
+
+	// Configure the plugin
+	if err := p.Configure(pluginConfig); err != nil {
+		return fmt.Errorf("failed to configure plugin: %w", err)
+	}
+
+	// Validate configuration
+	if err := p.ValidateConfig(); err != nil {
+		return fmt.Errorf("invalid plugin configuration: %w", err)
+	}
+
+	// Check if plugin supports pull
+	if !plugin.HasCapability(p, plugin.CapabilityPull) {
+		return fmt.Errorf("plugin %q does not support pull operations", pluginName)
+	}
+
+	// Pull flags using the plugin
+	ctx := context.Background()
+	flags, err := p.Pull(plugin.PullOptions{Context: ctx})
+	if err != nil {
+		return fmt.Errorf("error pulling flags via plugin: %w", err)
+	}
+
+	// Check each flag for null defaultValue
+	for index := range flags.Flags {
+		flag := &flags.Flags[index]
+		if flag.DefaultValue == nil {
+			if noPrompt {
+				return fmt.Errorf("flag '%s' is missing a default value and --no-prompt was specified", flag.Key)
+			}
+			defaultValue, err := promptForDefaultValue(flag)
+			if err != nil {
+				return fmt.Errorf("failed to get default value for flag '%s': %w", flag.Key, err)
+			}
+			flag.DefaultValue = defaultValue
+		}
+	}
+
+	meta := p.Metadata()
+	pterm.Success.Printfln("Successfully fetched %d flags via %s plugin", len(flags.Flags), meta.Name)
+	if err := manifest.Write(manifestPath, *flags); err != nil {
+		return fmt.Errorf("error writing manifest: %w", err)
+	}
+
+	return nil
 }
