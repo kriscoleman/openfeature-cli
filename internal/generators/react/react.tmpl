@@ -20,11 +20,14 @@ export const FlagKeys = {
 {{ range .Flagset.Flags }}
 /**
 * {{ if .Description }}{{ .Description }}{{ else }}Feature flag{{ end }}
-* 
+*
 * **Details:**
 * - flag key: `{{ .Key }}`
 * - default value: `{{ if eq (.Type | OpenFeatureType) "object"}}{{ .DefaultValue | ToJSONString }}{{ else }}{{ .DefaultValue }}{{ end }}`
 * - type: `{{ if eq (.Type | OpenFeatureType) "object" }}JsonValue{{ else }}{{ .Type | OpenFeatureType }}{{ end }}`
+{{- if .Expiry }}
+* @deprecated This flag is scheduled for removal on {{ .Expiry }}.
+{{- end }}
 */
 export const use{{ .Key | ToPascal }} = (options?: ReactFlagEvaluationOptions): FlagQuery<{{ if eq (.Type | OpenFeatureType) "object" }}JsonValue{{ else }}{{ .Type | OpenFeatureType }}{{ end }}> => {
   return useFlag({{ .Key | Quote }}, {{ if eq (.Type | OpenFeatureType) "object"}}{{ .DefaultValue | ToJSONString }}{{ else }}{{ .DefaultValue | QuoteString }}{{ end }}, options);
@@ -32,7 +35,7 @@ export const use{{ .Key | ToPascal }} = (options?: ReactFlagEvaluationOptions): 
 
 /**
 * {{ if .Description }}{{ .Description }}{{ else }}Feature flag{{ end }}
-* 
+*
 * **Details:**
 * - flag key: `{{ .Key }}`
 * - default value: `{{ if eq (.Type | OpenFeatureType) "object"}}{{ .DefaultValue | ToJSONString }}{{ else }}{{ .DefaultValue }}{{ end }}`
@@ -40,6 +43,9 @@ export const use{{ .Key | ToPascal }} = (options?: ReactFlagEvaluationOptions): 
 *
 * Equivalent to useFlag with options: `{ suspend: true }`
 * @experimental — Suspense is an experimental feature subject to change in future versions.
+{{- if .Expiry }}
+* @deprecated This flag is scheduled for removal on {{ .Expiry }}.
+{{- end }}
 */
 export const useSuspense{{ .Key | ToPascal }} = (options?: ReactFlagEvaluationNoSuspenseOptions): FlagQuery<{{ if eq (.Type | OpenFeatureType) "object" }}JsonValue{{ else }}{{ .Type | OpenFeatureType }}{{ end }}> => {
   return useSuspenseFlag({{ .Key | Quote }}, {{ if eq (.Type | OpenFeatureType) "object"}}{{ .DefaultValue | ToJSONString }}{{ else }}{{ .DefaultValue | QuoteString }}{{ end }}, options);

@@ -23,31 +23,37 @@ export interface GeneratedClient {
 {{- range .Flagset.Flags }}
   /**
   * {{ if .Description }}{{ .Description }}{{ else }}Feature flag{{ end }}
-  * 
+  *
   * **Details:**
   * - flag key: `{{ .Key }}`
   * - default value: `{{ if eq (.Type | OpenFeatureType) "object"}}{{ .DefaultValue | ToJSONString }}{{ else }}{{ .DefaultValue }}{{ end }}`
   * - type: `{{ if eq (.Type | OpenFeatureType) "object" }}JsonValue{{ else }}{{ .Type | OpenFeatureType }}{{ end }}`
-  * 
+  *
   * Performs a flag evaluation that returns a {{ .Type | OpenFeatureType }}.
   * @param {EvaluationContext} context The evaluation context used on an individual flag evaluation
   * @param {FlagEvaluationOptions} options Additional flag evaluation options
   * @returns {Promise<{{ if eq (.Type | OpenFeatureType) "object" }}JsonValue{{ else }}{{ .Type | OpenFeatureType }}{{ end }}>} Flag evaluation response
+  {{- if .Expiry }}
+  * @deprecated This flag is scheduled for removal on {{ .Expiry }}.
+  {{- end }}
   */
   {{ .Key | ToCamel }}(context?: EvaluationContext, options?: FlagEvaluationOptions): Promise<{{ if eq (.Type | OpenFeatureType) "object" }}JsonValue{{ else }}{{ .Type | OpenFeatureType }}{{ end }}>;
 
   /**
   * {{ if .Description }}{{ .Description }}{{ else }}Feature flag{{ end }}
-  * 
+  *
   * **Details:**
   * - flag key: `{{ .Key }}`
   * - default value: `{{ if eq (.Type | OpenFeatureType) "object"}}{{ .DefaultValue | ToJSONString }}{{ else }}{{ .DefaultValue }}{{ end }}`
   * - type: `{{ if eq (.Type | OpenFeatureType) "object" }}JsonValue{{ else }}{{ .Type | OpenFeatureType }}{{ end }}`
-  * 
+  *
   * Performs a flag evaluation that a returns an evaluation details object.
   * @param {EvaluationContext} context The evaluation context used on an individual flag evaluation
   * @param {FlagEvaluationOptions} options Additional flag evaluation options
   * @returns {Promise<EvaluationDetails<{{ if eq (.Type | OpenFeatureType) "object" }}JsonValue{{ else }}{{ .Type | OpenFeatureType }}{{ end }}>>} Flag evaluation details response
+  {{- if .Expiry }}
+  * @deprecated This flag is scheduled for removal on {{ .Expiry }}.
+  {{- end }}
   */
   {{ .Key | ToCamel }}Details(context?: EvaluationContext, options?: FlagEvaluationOptions): Promise<EvaluationDetails<{{ if eq (.Type | OpenFeatureType) "object" }}JsonValue{{ else }}{{ .Type | OpenFeatureType }}{{ end }}>>;
 {{ end -}}

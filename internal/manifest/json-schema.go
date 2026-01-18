@@ -52,6 +52,9 @@ type BaseFlag struct {
 	Type string `json:"flagType,omitempty" jsonschema:"required"`
 	// A concise description of this feature flag's purpose.
 	Description string `json:"description,omitempty"`
+	// The expiry date of this flag in ISO 8601 format (e.g., "2025-12-31").
+	// Flags with an expiry date will generate deprecation markers in the generated code.
+	Expiry string `json:"expiry,omitempty" jsonschema:"format=date"`
 }
 
 // Feature flag manifest for the OpenFeature CLI

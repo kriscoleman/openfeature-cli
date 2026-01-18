@@ -15,6 +15,11 @@
           "type": "string",
           "description": "A concise description of this feature flag's purpose."
         },
+        "expiry": {
+          "type": "string",
+          "format": "date",
+          "description": "The expiry date of this flag in ISO 8601 format (e.g., \"2025-12-31\").\nFlags with an expiry date will generate deprecation markers in the generated code."
+        },
         "defaultValue": {
           "type": "boolean",
           "description": "The value returned from an unsuccessful flag evaluation"
@@ -58,6 +63,11 @@
           "type": "string",
           "description": "A concise description of this feature flag's purpose."
         },
+        "expiry": {
+          "type": "string",
+          "format": "date",
+          "description": "The expiry date of this flag in ISO 8601 format (e.g., \"2025-12-31\").\nFlags with an expiry date will generate deprecation markers in the generated code."
+        },
         "defaultValue": {
           "type": "number",
           "description": "The value returned from an unsuccessful flag evaluation"
@@ -77,6 +87,11 @@
         "description": {
           "type": "string",
           "description": "A concise description of this feature flag's purpose."
+        },
+        "expiry": {
+          "type": "string",
+          "format": "date",
+          "description": "The expiry date of this flag in ISO 8601 format (e.g., \"2025-12-31\").\nFlags with an expiry date will generate deprecation markers in the generated code."
         },
         "defaultValue": {
           "type": "integer",
@@ -98,6 +113,11 @@
           "type": "string",
           "description": "A concise description of this feature flag's purpose."
         },
+        "expiry": {
+          "type": "string",
+          "format": "date",
+          "description": "The expiry date of this flag in ISO 8601 format (e.g., \"2025-12-31\").\nFlags with an expiry date will generate deprecation markers in the generated code."
+        },
         "defaultValue": {
           "description": "The value returned from an unsuccessful flag evaluation"
         }
@@ -116,6 +136,11 @@
         "description": {
           "type": "string",
           "description": "A concise description of this feature flag's purpose."
+        },
+        "expiry": {
+          "type": "string",
+          "format": "date",
+          "description": "The expiry date of this flag in ISO 8601 format (e.g., \"2025-12-31\").\nFlags with an expiry date will generate deprecation markers in the generated code."
         },
         "defaultValue": {
           "type": "string",

@@ -48,12 +48,35 @@ func displayFlagList(fs *flagset.Flagset, manifestPath string) {
 		return
 	}
 
+	// Count expired and expiring flags
+	var expiredCount, expiringCount int
+	for _, flag := range fs.Flags {
+		if flag.HasExpiry() {
+			if flag.IsExpired() {
+				expiredCount++
+			} else {
+				expiringCount++
+			}
+		}
+	}
+
 	// Print header
 	pterm.DefaultSection.Println(fmt.Sprintf("Flags in %s (%d)", manifestPath, len(fs.Flags)))
 
+	// Print deprecation summary if any
+	if expiredCount > 0 || expiringCount > 0 {
+		if expiredCount > 0 {
+			pterm.FgRed.Printf("  ⚠ %d expired flag(s)\n", expiredCount)
+		}
+		if expiringCount > 0 {
+			pterm.FgYellow.Printf("  ⏰ %d flag(s) with scheduled expiry\n", expiringCount)
+		}
+		fmt.Println()
+	}
+
 	// Create table data
 	tableData := pterm.TableData{
-		{"Key", "Type", "Default Value", "Description"},
+		{"Key", "Type", "Default Value", "Expiry", "Description"},
 	}
 
 	for _, flag := range fs.Flags {
@@ -62,22 +85,45 @@ func displayFlagList(fs *flagset.Flagset, manifestPath string) {
 
 		// Truncate description if too long
 		description := flag.Description
-		const maxDescriptionLength = 50
+		const maxDescriptionLength = 40
 
 		if len(description) > maxDescriptionLength {
 			description = description[:maxDescriptionLength-3] + "..."
 		}
 
+		// Format expiry with status indicator
+		expiry := formatExpiry(&flag)
+
+		// Format key with deprecation indicator
+		key := flag.Key
+		if flag.IsExpired() {
+			key = pterm.FgRed.Sprintf("%s", flag.Key)
+		} else if flag.HasExpiry() {
+			key = pterm.FgYellow.Sprintf("%s", flag.Key)
+		}
+
 		tableData = append(tableData, []string{
-			flag.Key,
+			key,
 			flag.Type.String(),
 			defaultValueStr,
+			expiry,
 			description,
 		})
 	}
 
 	// Render table
 	_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+}
+
+// formatExpiry formats the expiry date with status indicator
+func formatExpiry(flag *flagset.Flag) string {
+	if flag.Expiry == "" {
+		return "-"
+	}
+	if flag.IsExpired() {
+		return pterm.FgRed.Sprintf("%s (expired)", flag.Expiry)
+	}
+	return pterm.FgYellow.Sprintf("%s", flag.Expiry)
 }
 
 // formatValue converts a value to a string representation suitable for display

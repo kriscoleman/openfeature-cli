@@ -117,6 +117,9 @@ interface TypedFeatureProps {
  * ```
  * @param {TypedFeatureProps} props The options for injecting the feature flag.
  * @returns {ParameterDecorator} The decorator function.
+ {{- if .Expiry }}
+ * @deprecated This flag is scheduled for removal on {{ .Expiry }}.
+ {{- end }}
  */
 export function {{ .Key | ToPascal }}(props?: TypedFeatureProps): ParameterDecorator {
   return {{ .Type | OpenFeatureType | ToPascal }}FeatureFlag({ flagKey: {{ .Key | Quote }}, defaultValue: {{ if eq (.Type | OpenFeatureType) "object"}}{{ .DefaultValue | ToJSONString }}{{ else }}{{ .DefaultValue | QuoteString }}{{ end }}, ...props });

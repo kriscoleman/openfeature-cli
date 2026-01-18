@@ -30,7 +30,13 @@ public final class OpenFeature {
          * - Type: {{ .Type | OpenFeatureType }}
          * - Default value: {{ if eq (.Type | OpenFeatureType) "Object" }}{{ .DefaultValue | ToMapLiteral }}{{ else }}{{ .DefaultValue }}{{ end }}
          * Returns the flag value
+         {{- if .Expiry }}
+         * @deprecated This flag is scheduled for removal on {{ .Expiry }}.
+         {{- end }}
          */
+        {{- if .Expiry }}
+        @Deprecated
+        {{- end }}
         {{ .Type | OpenFeatureType }} {{ .Key | ToCamel }}(EvaluationContext ctx);
 
         /**
@@ -40,7 +46,13 @@ public final class OpenFeature {
          * - Type: {{ .Type | OpenFeatureType }}
          * - Default value: {{ if eq (.Type | OpenFeatureType) "Object" }}{{ .DefaultValue | ToMapLiteral }}{{ else }}{{ .DefaultValue }}{{ end }}
          * Returns the evaluation details containing the flag value and metadata
+         {{- if .Expiry }}
+         * @deprecated This flag is scheduled for removal on {{ .Expiry }}.
+         {{- end }}
          */
+        {{- if .Expiry }}
+        @Deprecated
+        {{- end }}
         FlagEvaluationDetails<{{ .Type | OpenFeatureType }}> {{ .Key | ToCamel }}Details(EvaluationContext ctx);
 
 {{- end }}
@@ -55,11 +67,19 @@ public final class OpenFeature {
 
         {{ range .Flagset.Flags }}
         @Override
+        {{- if .Expiry }}
+        @Deprecated
+        @SuppressWarnings("deprecation")
+        {{- end }}
         public {{ .Type | OpenFeatureType }} {{ .Key | ToCamel }}(EvaluationContext ctx) {
             return client.get{{ .Type | OpenFeatureType | ToPascal }}Value("{{ .Key }}", {{ if eq (.Type | OpenFeatureType) "Object" }}{{ .DefaultValue | ToMapLiteral }}{{ else }}{{ . | FormatDefaultValue }}{{ end }}, ctx);
         }
 
         @Override
+        {{- if .Expiry }}
+        @Deprecated
+        @SuppressWarnings("deprecation")
+        {{- end }}
         public FlagEvaluationDetails<{{ .Type | OpenFeatureType }}> {{ .Key | ToCamel }}Details(EvaluationContext ctx) {
             return client.get{{ .Type | OpenFeatureType | ToPascal }}Details("{{ .Key }}", {{ if eq (.Type | OpenFeatureType) "Object" }}{{ .DefaultValue | ToMapLiteral }}{{ else }}{{ . | FormatDefaultValue }}{{ end }}, ctx);
         }

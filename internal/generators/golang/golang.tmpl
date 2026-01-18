@@ -30,6 +30,10 @@ var client = openfeature.NewDefaultClient()
 // {{ if .Description }}{{ .Description }}{{ end }}
 //
 // The flag is a type of {{ .Type }} and defaults to {{ .DefaultValue }}.
+{{- if .Expiry }}
+//
+// Deprecated: This flag is scheduled for removal on {{ .Expiry }}.
+{{- end }}
 var {{ .Key | ToPascal }} = struct {
 	fmt.Stringer
 	// Value returns the value of the [{{ .Key | ToPascal }}] flag.

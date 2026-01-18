@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"time"
 )
 
 // FlagType are the primitive types of flags.
@@ -41,6 +42,34 @@ type Flag struct {
 	Type         FlagType
 	Description  string
 	DefaultValue any
+	Expiry       string // ISO 8601 date format (e.g., "2025-12-31")
+}
+
+// HasExpiry returns true if the flag has an expiry date set.
+func (f *Flag) HasExpiry() bool {
+	return f.Expiry != ""
+}
+
+// IsExpired returns true if the flag's expiry date is in the past.
+func (f *Flag) IsExpired() bool {
+	if f.Expiry == "" {
+		return false
+	}
+	expiryDate, err := time.Parse("2006-01-02", f.Expiry)
+	if err != nil {
+		return false
+	}
+	return time.Now().After(expiryDate)
+}
+
+// ExpiryTime returns the expiry date as a time.Time.
+// Returns a zero time if expiry is not set or invalid.
+func (f *Flag) ExpiryTime() time.Time {
+	if f.Expiry == "" {
+		return time.Time{}
+	}
+	t, _ := time.Parse("2006-01-02", f.Expiry)
+	return t
 }
 
 type Flagset struct {
@@ -83,6 +112,7 @@ func (fs *Flagset) UnmarshalJSON(data []byte) error {
 			FlagType     string `json:"flagType"`
 			Description  string `json:"description"`
 			DefaultValue any    `json:"defaultValue"`
+			Expiry       string `json:"expiry"`
 		} `json:"flags"`
 	}
 
@@ -101,6 +131,7 @@ func (fs *Flagset) UnmarshalJSON(data []byte) error {
 			Type:         flagType,
 			Description:  flag.Description,
 			DefaultValue: flag.DefaultValue,
+			Expiry:       flag.Expiry,
 		})
 	}
 
@@ -119,12 +150,14 @@ func (fs *Flagset) MarshalJSON() ([]byte, error) {
 			FlagType     string `json:"flagType"`
 			Description  string `json:"description"`
 			DefaultValue any    `json:"defaultValue"`
+			Expiry       string `json:"expiry,omitempty"`
 		} `json:"flags"`
 	}{
 		Flags: make(map[string]struct {
 			FlagType     string `json:"flagType"`
 			Description  string `json:"description"`
 			DefaultValue any    `json:"defaultValue"`
+			Expiry       string `json:"expiry,omitempty"`
 		}),
 	}
 
@@ -133,10 +166,12 @@ func (fs *Flagset) MarshalJSON() ([]byte, error) {
 			FlagType     string `json:"flagType"`
 			Description  string `json:"description"`
 			DefaultValue any    `json:"defaultValue"`
+			Expiry       string `json:"expiry,omitempty"`
 		}{
 			FlagType:     flag.Type.String(),
 			Description:  flag.Description,
 			DefaultValue: flag.DefaultValue,
+			Expiry:       flag.Expiry,
 		}
 	}
 
@@ -149,6 +184,7 @@ func LoadFromSourceFlags(data []byte) (*[]Flag, error) {
 		Type         string `json:"type"`
 		Description  string `json:"description"`
 		DefaultValue any    `json:"defaultValue"`
+		Expiry       string `json:"expiry"`
 	}
 
 	// First try to unmarshal as an object with a "flags" property
@@ -180,6 +216,7 @@ func LoadFromSourceFlags(data []byte) (*[]Flag, error) {
 			Type:         flagType,
 			Description:  sf.Description,
 			DefaultValue: sf.DefaultValue,
+			Expiry:       sf.Expiry,
 		})
 	}
 

@@ -81,6 +81,9 @@ namespace {{ if .Params.Custom.Namespace }}{{ .Params.Custom.Namespace }}{{ else
         /// <param name="evaluationContext">Optional context for the flag evaluation</param>
         /// <param name="options">Options for flag evaluation</param>
         /// <returns>The flag value</returns>
+        {{- if .Expiry }}
+        [Obsolete("This flag is scheduled for removal on {{ .Expiry }}.")]
+        {{- end }}
         public async Task<{{ if eq (.Type | OpenFeatureType) "object" }}Value{{ else }}{{ .Type | OpenFeatureType }}{{ end }}> {{ .Key | ToPascal }}Async(EvaluationContext? evaluationContext = null, FlagEvaluationOptions? options = null)
         {
             {{- if eq .Type 1 }}
@@ -109,6 +112,9 @@ namespace {{ if .Params.Custom.Namespace }}{{ .Params.Custom.Namespace }}{{ else
         /// <param name="evaluationContext">Optional context for the flag evaluation</param>
         /// <param name="options">Options for flag evaluation</param>
         /// <returns>The evaluation details containing the flag value and metadata</returns>
+        {{- if .Expiry }}
+        [Obsolete("This flag is scheduled for removal on {{ .Expiry }}.")]
+        {{- end }}
         public async Task<FlagEvaluationDetails<{{ if eq (.Type | OpenFeatureType) "object" }}Value{{ else }}{{ .Type | OpenFeatureType }}{{ end }}>> {{ .Key | ToPascal }}DetailsAsync(EvaluationContext? evaluationContext = null, FlagEvaluationOptions? options = null)
         {
             {{- if eq .Type 1 }}
