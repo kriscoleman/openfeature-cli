@@ -61,12 +61,13 @@ We appreciate your contributions and look forward to seeing your new generators!
 
 Each generator reserves certain symbol names that it exports in the generated output. If a flag key transforms to a reserved name, that flag will be **excluded** from the generated output and a warning will be printed.
 
-| Generator | Reserved names | Transform applied |
-|-----------|---------------|-------------------|
-| Go        | `Client`      | `ToPascal`        |
-| Node.js   | `client`      | `ToCamel`         |
+| Generator | Reserved names         | Transform applied            |
+|-----------|------------------------|------------------------------|
+| Go        | `Client`               | `ToPascal`                   |
+| Node.js   | `client`               | `ToCamel`                    |
+| React     | `useOpenFeatureClient` | `use` + `ToPascal`           |
 
-For example, a flag key `"client"` in a Go manifest would transform to `Client` (via `ToPascal`), colliding with the exported `var Client` that the Go generator places in every generated file. The flag will be skipped and the following warning emitted:
+A generator only reserves a name when a flag key could actually transform into a symbol it already emits. For example, a flag key `"client"` in a Go manifest transforms to `Client` (via `ToPascal`), colliding with the exported `var Client` that the Go generator places in every generated file. Likewise, a flag key `"openFeatureClient"` for the React generator produces the hook `useOpenFeatureClient`, colliding with the re-exported hook of the same name. The flag is skipped and a warning is emitted:
 
 ```
 Flag "client" transforms to "Client" which is a reserved symbol in the Go generator. This flag will be excluded from the generated output.
@@ -74,4 +75,6 @@ Flag "client" transforms to "Client" which is a reserved symbol in the Go genera
 
 To avoid this, rename any flags whose transformed name matches a reserved symbol.
 
-When adding a new generator, document its reserved names in the table above and enforce them in the generator's `Generate()` method using the same pattern.
+Generators whose exposed client symbol cannot collide with a flag-generated member do not reserve a name. For instance, C# exposes a `Client` property while flags generate `<Pascal>Async`/`<Pascal>DetailsAsync` methods, and Java exposes a no-arg `getOpenFeatureClient()` that a flag method would only ever overload — so neither needs an entry above.
+
+When adding a new generator, use the shared `generators.FilterReservedFlags` helper in the generator's `Generate()` method, and add a row here only if a flag key can genuinely transform into a symbol the generator exports.

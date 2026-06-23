@@ -13,7 +13,6 @@ import (
 	"github.com/iancoleman/strcase"
 	"github.com/open-feature/cli/internal/flagset"
 	"github.com/open-feature/cli/internal/generators"
-	"github.com/open-feature/cli/internal/logger"
 	"golang.org/x/tools/imports"
 )
 
@@ -138,19 +137,7 @@ var reservedNames = map[string]bool{
 }
 
 func (g *GolangGenerator) Generate(params *generators.Params[Params]) error {
-	filtered := &flagset.Flagset{}
-	for _, flag := range g.Flagset.Flags {
-		transformed := strcase.ToCamel(flag.Key)
-		if reservedNames[transformed] {
-			logger.Default.Warning(fmt.Sprintf(
-				"Flag %q transforms to %q which is a reserved symbol in the Go generator. This flag will be excluded from the generated output.",
-				flag.Key, transformed,
-			))
-			continue
-		}
-		filtered.Flags = append(filtered.Flags, flag)
-	}
-	g.Flagset = filtered
+	g.Flagset = generators.FilterReservedFlags(g.Flagset, "Go", reservedNames, strcase.ToCamel)
 
 	funcs := template.FuncMap{
 		"SupportImports":  supportImports,

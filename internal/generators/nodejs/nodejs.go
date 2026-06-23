@@ -3,13 +3,11 @@ package nodejs
 import (
 	_ "embed"
 	"encoding/json"
-	"fmt"
 	"text/template"
 
 	"github.com/iancoleman/strcase"
 	"github.com/open-feature/cli/internal/flagset"
 	"github.com/open-feature/cli/internal/generators"
-	"github.com/open-feature/cli/internal/logger"
 )
 
 type NodejsGenerator struct {
@@ -54,19 +52,7 @@ var reservedNames = map[string]bool{
 }
 
 func (g *NodejsGenerator) Generate(params *generators.Params[Params]) error {
-	filtered := &flagset.Flagset{}
-	for _, flag := range g.Flagset.Flags {
-		transformed := strcase.ToLowerCamel(flag.Key)
-		if reservedNames[transformed] {
-			logger.Default.Warning(fmt.Sprintf(
-				"Flag %q transforms to %q which is a reserved symbol in the Node.js generator. This flag will be excluded from the generated output.",
-				flag.Key, transformed,
-			))
-			continue
-		}
-		filtered.Flags = append(filtered.Flags, flag)
-	}
-	g.Flagset = filtered
+	g.Flagset = generators.FilterReservedFlags(g.Flagset, "Node.js", reservedNames, strcase.ToLowerCamel)
 
 	funcs := template.FuncMap{
 		"OpenFeatureType": openFeatureType,
